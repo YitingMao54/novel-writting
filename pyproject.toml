@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "novel-agent"
+version = "1.0.0"
+description = "百万字级长篇小说自动写作 Agent，支持 DeepSeek / 通义千问 / Kimi / GLM 等国产大模型"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.27", "PyYAML>=6.0"]
+
+[project.scripts]
+novel-agent = "novel_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["novel_agent*"]
