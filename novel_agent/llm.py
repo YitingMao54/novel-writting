@@ -27,11 +27,13 @@ class LLMError(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, cfg: Config, verbose: bool = True):
+    def __init__(self, cfg: Config, verbose: bool = True, chunk_callback=None):
         self.cfg = cfg
         self.verbose = verbose
         self.mock = os.environ.get("NOVEL_AGENT_MOCK", "").strip() in ("1", "true", "yes")
         self._routes: dict[str, RoleRoute] = {}
+        # 流式增量回调（Web 工作台用）：每收到一段正文增量时触发
+        self.chunk_callback = chunk_callback
 
     def route(self, role: str) -> RoleRoute:
         if role not in self._routes:
@@ -121,6 +123,11 @@ class LLMClient:
                         chunks.append(piece)
                         if self.verbose:
                             print(piece, end="", flush=True)
+                        if self.chunk_callback:
+                            try:
+                                self.chunk_callback(piece)
+                            except Exception:
+                                pass
         if self.verbose:
             print()
         return "".join(chunks).strip(), usage

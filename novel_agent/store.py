@@ -69,7 +69,13 @@ SETTING_KEYS = ("genre", "world", "style", "theme", "main_plot", "book_outline")
 class Store:
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path)
-        self.conn = sqlite3.connect(str(self.db_path))
+        # check_same_thread=False：允许 Web 服务器多线程各自创建连接后跨线程移交；
+        # WAL 模式保证"写作长任务 + 页面轮询"并发读写安全。
+        self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        try:
+            self.conn.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.DatabaseError:
+            pass
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
         self.conn.commit()

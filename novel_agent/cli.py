@@ -219,16 +219,14 @@ def cmd_usage(args):
     print(f"{'合计':<12} 输入 {total_p:>10,} tok | 输出 {total_c:>10,} tok")
 
 
-def cmd_export(args):
-    cfg, store, _ = _open_project(args.project)
+def do_export(store: Store, cfg: Config, fmt: str = "md") -> Path:
+    """导出全部已定稿章节，返回文件路径（CLI 与 Web 共用）。"""
     out_dir = cfg.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     title = store.get_meta("title", "novel")
-    chapters = store.chapters_between(1, 10 ** 9)
-    chapters = [c for c in chapters if c["status"] == "final"]
+    chapters = [c for c in store.chapters_between(1, 10 ** 9) if c["status"] == "final"]
     if not chapters:
-        sys.exit("没有已定稿章节可导出")
-    fmt = args.format
+        raise ValueError("没有已定稿章节可导出")
     ext = "md" if fmt == "md" else "txt"
     path = out_dir / f"{title}.{ext}"
     with open(path, "w", encoding="utf-8") as f:
@@ -245,7 +243,21 @@ def cmd_export(args):
                 f.write(f"\n{'##' if fmt == 'md' else ''} {vtitle}\n\n")
             heading = "###" if fmt == "md" else ""
             f.write(f"{heading} 第{c['number']}章 {c['title']}\n\n{c['content']}\n\n")
-    print(f"✅ 已导出 {len(chapters)} 章 → {path}")
+    return path
+
+
+def cmd_export(args):
+    cfg, store, _ = _open_project(args.project)
+    try:
+        path = do_export(store, cfg, args.format)
+    except ValueError as e:
+        sys.exit(str(e))
+    print(f"✅ 导出完成 → {path}")
+
+
+def cmd_web(args):
+    from .web import WebApp
+    WebApp(args.project, host=args.host, port=args.port).serve()
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +331,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("project")
     p.add_argument("--format", choices=["md", "txt"], default="md")
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("web", help="启动本地 Web 工作台")
+    p.add_argument("project")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--host", default="127.0.0.1")
+    p.set_defaults(func=cmd_web)
 
     return top
 
